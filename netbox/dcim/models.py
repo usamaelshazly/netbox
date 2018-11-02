@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from itertools import count, groupby
+import re
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,12 +18,18 @@ from timezone_field import TimeZoneField
 
 from extras.models import ConfigContextModel, CustomFieldModel, ObjectChange
 from utilities.fields import ColorField, NullableCharField
-from utilities.managers import NaturalOrderByManager
-from utilities.models import ChangeLoggedModel
+from utilities.managers import NaturalOrderByManager, NaturallyOrderedManager
+from utilities.models import ChangeLoggedModel, NaturallyOrderedModel
 from utilities.utils import serialize_object, to_meters
 from .constants import *
 from .fields import ASNField, MACAddressField
-from .querysets import InterfaceQuerySet
+
+SLOT =     r'^(?:[^0-9]+)?(\d{1,9})/'
+SUBSLOT =  r'^(?:[^0-9]+)?\d{1,9}/(\d{1,9})'
+POSITION = r'^(?:[^0-9]+)?\d{1,9}/\d{1,9}/(\d{1,9})'
+ID =       r'^(?:[^0-9]+)?(\d{1,9})(:\d{1,9})?(\.\d{1,9})?$'
+CHANNEL =  r'^.*:(\d{1,9})(\.\d{1,9})?$'
+VC =       r'^.*\.(\d{1,9})$'
 
 
 class ComponentTemplateModel(models.Model):
@@ -44,10 +51,32 @@ class ComponentTemplateModel(models.Model):
         ).save()
 
 
-class ComponentModel(models.Model):
+class ComponentModel(NaturallyOrderedModel):
 
     class Meta:
         abstract = True
+
+    def save(self, *args, **kwargs):
+
+        slot = re.match(SLOT, self.name)
+        self._idx1 = slot.groups()[0] if slot else None
+
+        subslot = re.match(SUBSLOT, self.name)
+        self._idx2 = subslot.groups()[0] if subslot else None
+
+        position = re.match(POSITION, self.name)
+        self._idx3 = position.groups()[0] if position else None
+
+        id = re.match(ID, self.name)
+        self._idx4 = id.groups()[0] if id else None
+
+        channel = re.match(CHANNEL, self.name)
+        self._idx5 = channel.groups()[0] if channel else 0
+
+        vc = re.match(VC, self.name)
+        self._idx6 = vc.groups()[0] if vc else 0
+
+        super(ComponentModel, self).save(*args, **kwargs)
 
     def log_change(self, user, request_id, action):
         """
@@ -1063,7 +1092,7 @@ class InterfaceTemplate(ComponentTemplateModel):
         verbose_name='Management only'
     )
 
-    objects = InterfaceQuerySet.as_manager()
+    # objects = InterfaceQuerySet.as_manager()
 
     class Meta:
         ordering = ['device_type', 'name']
@@ -1954,7 +1983,7 @@ class Interface(CableTermination, ComponentModel):
         verbose_name='Tagged VLANs'
     )
 
-    objects = InterfaceQuerySet.as_manager()
+    objects = NaturallyOrderedManager()
     tags = TaggableManager()
 
     class Meta:
@@ -1968,6 +1997,8 @@ class Interface(CableTermination, ComponentModel):
         return reverse('dcim:interface', kwargs={'pk': self.pk})
 
     def clean(self):
+
+        super(Interface, self).clean()
 
         # An Interface must belong to a Device *or* to a VirtualMachine
         if self.device and self.virtual_machine:

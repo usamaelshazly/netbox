@@ -35,3 +35,36 @@ class ChangeLoggedModel(models.Model):
             action=action,
             object_data=serialize_object(self)
         ).save()
+
+
+class NaturallyOrderedModel(models.Model):
+    """
+    An abstract model which adds a series of numeric indices to be used for natural ordering.
+    """
+    _idx1 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+    _idx2 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+    _idx3 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+    _idx4 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+    _idx5 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+    _idx6 = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True
+    )
+
+    class Meta:
+        abstract = True

@@ -34,3 +34,10 @@ class NaturalOrderByManager(Manager):
                 ordering.append(field)
 
         return queryset.order_by(*ordering)
+
+
+class NaturallyOrderedManager(Manager):
+
+    def get_queryset(self):
+        queryset = super(NaturallyOrderedManager, self).get_queryset()
+        return queryset.order_by('_idx1', '_idx2', '_idx3', '_idx4', '_idx5', 'name')
